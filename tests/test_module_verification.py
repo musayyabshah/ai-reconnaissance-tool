@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import httpx
 import pytest
+import respx
 
 from ai_recon.analyzers.analysis import (
     HeaderAnalyzer,
@@ -103,3 +105,53 @@ async def test_passive_collectors_reject_out_of_scope_without_network() -> None:
         await PassiveOSINTCollector(scope).collect("outside.example.net")
     subdomains = SubdomainCollector.normalize("*.Api.Example.COM.")
     assert subdomains == "api.example.com"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_provider_response_normalization() -> None:
+    respx.get("https://api.shodan.io/shodan/host/search").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "matches": [
+                    {
+                        "ip_str": "203.0.113.10",
+                        "port": 443,
+                        "transport": "tcp",
+                        "product": "Example Server",
+                        "version": "1.0",
+                        "org": "Example Org",
+                    }
+                ]
+            },
+        )
+    )
+    respx.post("https://search.censys.io/api/v2/hosts/search").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": {
+                    "hits": [
+                        {
+                            "ip": "198.51.100.10",
+                            "services": [
+                                {
+                                    "port": 443,
+                                    "transport_protocol": "TCP",
+                                    "service_name": "HTTP",
+                                    "software": [{"product": "Example", "version": "2.0"}],
+                                }
+                            ],
+                        }
+                    ]
+                }
+            },
+        )
+    )
+    shodan = await ShodanProvider("configured-key").search("example.com")
+    censys = await CensysProvider("configured-id", "configured-secret").search("example.com")
+    assert shodan[0].ip == "203.0.113.10"
+    assert shodan[0].product == "Example Server"
+    assert censys[0].ip == "198.51.100.10"
+    assert censys[0].version == "2.0"
