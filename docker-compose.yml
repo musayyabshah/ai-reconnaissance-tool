@@ -9,6 +9,7 @@ services:
       SHODAN_API_KEY: ${SHODAN_API_KEY:-}
       CENSYS_API_ID: ${CENSYS_API_ID:-}
       CENSYS_API_SECRET: ${CENSYS_API_SECRET:-}
+      RECON_BOOTSTRAP_KEY: ${RECON_BOOTSTRAP_KEY:-}
     volumes:
       - ./data:/app/data
       - ./reports:/app/reports

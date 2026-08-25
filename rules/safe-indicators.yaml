@@ -1,0 +1,40 @@
+rules:
+  - rule_id: exposed-openapi-docs
+    name: EXPOSED_API_DOCUMENTATION
+    description: Publicly reachable API documentation can increase discoverability of sensitive endpoints.
+    path: /openapi.json
+    method: GET
+    expected_status: [200]
+    body_contains: ["openapi"]
+    severity: LOW
+    remediation: Restrict API documentation appropriately and verify that it contains no sensitive endpoint or schema information.
+
+  - rule_id: exposed-swagger-ui
+    name: EXPOSED_SWAGGER_UI
+    description: Publicly reachable Swagger UI is an inventory signal and requires ownership review.
+    path: /swagger-ui/
+    method: GET
+    expected_status: [200, 301, 302]
+    body_contains: ["swagger"]
+    severity: LOW
+    remediation: Review whether public API documentation is intentional and remove unnecessary exposure.
+
+  - rule_id: debug-metadata
+    name: POTENTIAL_DEBUG_METADATA
+    description: A common informational endpoint returned a successful response and should be reviewed for sensitive metadata.
+    path: /actuator/info
+    method: GET
+    expected_status: [200]
+    severity: MEDIUM
+    remediation: Review the endpoint contents and disable or restrict debug and operational metadata in production.
+
+  - rule_id: wildcard-cors
+    name: PERMISSIVE_CORS_INDICATOR
+    description: The root response advertises a wildcard cross-origin policy.
+    path: /
+    method: GET
+    expected_status: [200, 204]
+    header_contains:
+      access-control-allow-origin: "*"
+    severity: MEDIUM
+    remediation: Review whether wildcard cross-origin access is required and restrict origins where possible.

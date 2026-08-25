@@ -18,10 +18,10 @@ def write_html(report: ScanReport, path: str | Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     findings = (
         "".join(
-            f"<tr><td>{html.escape(item.finding_id)}</td><td>{html.escape(item.target)}</td><td>{html.escape(item.type)}</td><td>{html.escape(item.severity.value)}</td><td>{item.score:.1f}</td><td>{html.escape('; '.join(item.evidence))}</td></tr>"
+            f"<tr><td>{html.escape(item.finding_id)}</td><td>{html.escape(item.target)}</td><td>{html.escape(item.type)}</td><td>{html.escape(item.severity.value)}</td><td>{item.score:.1f}</td><td>{html.escape(item.cve_id or '-')}</td><td>{item.cvss_score if item.cvss_score is not None else '-'}</td><td>{item.epss_score if item.epss_score is not None else '-'}</td><td>{'YES' if item.kev_listed else 'NO'}</td><td>{html.escape('; '.join(item.evidence))}</td><td>{html.escape(item.remediation or item.recommended_action or '-')}</td></tr>"
             for item in sorted(report.findings, key=lambda finding: finding.score, reverse=True)
         )
-        or '<tr><td colspan="6">No findings recorded.</td></tr>'
+        or '<tr><td colspan="11">No findings recorded.</td></tr>'
     )
     assets = (
         "".join(
@@ -36,7 +36,7 @@ def write_html(report: ScanReport, path: str | Path) -> Path:
 <body><main><div class="hero"><div class="muted">AUTHORIZED DEFENSIVE ASSESSMENT</div><h1>AI Reconnaissance Report</h1><p>Target: <strong>{html.escape(report.target.value)}</strong> · Scan ID: {html.escape(report.scan_id)}</p><p class="muted">Observations are not confirmed vulnerabilities. Active probing is limited to explicitly authorized scope.</p></div>
 <div class="grid"><div class="card"><div class="muted">Assets</div><div class="value">{len(report.assets)}</div></div><div class="card"><div class="muted">Services</div><div class="value">{len(report.services)}</div></div><div class="card"><div class="muted">HTTP observations</div><div class="value">{len(report.http_observations)}</div></div><div class="card"><div class="muted">High priority</div><div class="value">{report.high_priority_count}</div></div></div>
 <section><h2>Attack-surface inventory</h2><table><thead><tr><th>Asset</th><th>Scope</th><th>IPs</th><th>Services</th><th>HTTP</th><th>Technologies</th></tr></thead><tbody>{assets}</tbody></table></section>
-<section><h2>Priority observations</h2><table><thead><tr><th>ID</th><th>Target</th><th>Type</th><th>Priority</th><th>Score</th><th>Evidence</th></tr></thead><tbody>{findings}</tbody></table></section>
+<section><h2>Priority observations</h2><table><thead><tr><th>ID</th><th>Target</th><th>Type</th><th>Priority</th><th>Score</th><th>CVE</th><th>CVSS</th><th>EPSS</th><th>KEV</th><th>Evidence</th><th>Remediation</th></tr></thead><tbody>{findings}</tbody></table></section>
 <section><h2>Collection timeline</h2><p>Started: {html.escape(report.started_at.isoformat())}</p><p>Completed: {html.escape(report.completed_at.isoformat() if report.completed_at else "incomplete")}</p><p>DNS records: {len(report.dns_records)} · Subdomains: {len(report.subdomains)} · Intelligence observations: {len(report.intelligence)} · Errors: {len(report.errors)}</p></section>
 <section><h2>Safety and limitations</h2><p>Provider failures are isolated and listed as errors. AI output is treated as analysis, not ground truth. This report does not perform or claim exploitation, authentication bypass, credential attacks, stealth, or destructive testing.</p></section>
 </main></body></html>"""

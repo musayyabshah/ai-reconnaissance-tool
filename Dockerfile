@@ -7,6 +7,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml README.md ./
 COPY ai_recon ./ai_recon
+COPY rules ./rules
 RUN pip install --no-cache-dir .
 RUN mkdir -p /app/data /app/reports
 EXPOSE 8000

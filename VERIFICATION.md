@@ -1,29 +1,52 @@
-# Verification Record
+# Verification Record — Mature Release 0.4.0
 
-## Scope
+## Scope of verification
 
-The attached project brief was implemented as an authorized defensive reconnaissance and OSINT framework. Active collection requires explicit scope authorization, private-network safeguards are enabled by default, and no exploitation or authentication-bypass functionality is included.
+This release was reviewed and tested as an authorized defensive reconnaissance and attack-surface platform. The tool does not implement credential attacks, destructive testing, exploit execution, stealth, persistence, malware behavior, or unrestricted SSRF.
 
-## Module-by-module verification
+## Implemented maturity features
 
-The dedicated `tests/test_module_verification.py` suite exercises the configuration round trip, every model facade, Nmap profiles, DNS helpers, HTTP scope and SSRF boundaries, passive OSINT boundary, subdomain normalization, provider credential fallbacks, retry behavior, TTL cache, storage, and report-related interfaces.
+| Area | Verified implementation |
+|---|---|
+| Multi-user identity | Organizations, owner/admin/analyst/viewer roles, PBKDF2 password hashes, expiring bearer tokens, and one-time bootstrap. |
+| Tenant isolation | Scan rows, jobs, managed assets, audit events, reports, graph views, and diffs are organization-scoped. |
+| API hardening | Trusted hosts, security headers, request IDs, auth endpoint no-store headers, and bounded rate limiting. |
+| Auditability | Hash-chained audit events with an owner/admin integrity-verification endpoint. |
+| Asset management | Persistent criticality, owner, environment, and tag metadata. |
+| Collection safety | Explicit scope, private-network protections, redirect revalidation, redirect cap, response-size bounds, and provider isolation. |
+| Vulnerability indicators | Declarative YAML rules limited to relative GET/HEAD requests with bounded bodies and no arbitrary code. |
+| Intelligence enrichment | Dated NVD, EPSS, and CISA KEV normalization with score, percentile, vector, due date, and source fields. |
+| Prioritization | Explainable confidence, CVSS, EPSS, KEV, exposure, and asset-criticality inputs; no silent vulnerability confirmation. |
+| Graph and history | Cytoscape-compatible relationship graph and added/removed asset/service/finding diffs. |
+| Reporting | JSON, HTML, terminal output, evidence hashes, verification state, remediation, and enrichment fields. |
+| Operations | Background scan jobs, cancellation, Docker image/Compose deployment, retries, caching, and API/CLI entry points. |
 
-Result: **5 passed**.
+## Final quality gates
 
-## Complete validation passes
+Two complete quality passes were run after the mature feature integration. Each pass included the entire automated suite, linting, bytecode compilation, dependency verification, and repository diff checks.
 
-**Pass 1** ran the module verification suite, the full project suite, Ruff linting, and Python bytecode compilation.
+| Gate | Pass 1 | Pass 2 |
+|---|---:|---:|
+| Pytest suite | **26 passed** | **26 passed** |
+| Ruff lint | **All checks passed** | **All checks passed** |
+| Python compilation | **Passed** | **Passed** |
+| `pip check` | **No broken requirements** | **No broken requirements** |
+| `git diff --check` | **Passed** | **Passed** |
+| Multi-user API tests | **Passed** | **Passed** |
+| Safe rule tests | **Passed** | **Passed** |
+| Threat-intelligence mocks | **Passed** | **Passed** |
+| Redirect/SSRF boundary tests | **Passed** | **Passed** |
+| Graph and scan-diff tests | **Passed** | **Passed** |
+| Background-job ownership tests | **Passed** | **Passed** |
 
-Result: **5 module checks passed; 16 total tests passed; lint passed; compilation passed.**
+## Important operational boundaries
 
-**Pass 2** repeated the module verification suite and full project suite, then ran the credential-free CLI smoke workflow covering `recon --help`, `recon scan`, asset listing, finding listing, JSON report replay, HTML report replay, Ruff linting, and compilation.
+The API’s default application requires authentication. Set `RECON_BOOTSTRAP_KEY` for one-time owner bootstrap and do not expose the service directly to the internet without HTTPS, network policy, secret rotation, backup, durable job infrastructure, and an external identity provider.
 
-Result: **5 module checks passed; 16 total tests passed; CLI smoke workflow passed; lint passed; compilation passed.**
+The built-in vulnerability rules intentionally produce indicators and review-required evidence. They do not prove broken authorization, broken authentication, SSRF, business-flow abuse, or a software CVE solely from a banner or technology fingerprint. Authenticated, role-aware checks require a separately approved test plan, designated accounts, request budgets, and human review.
 
-The API tests use an async ASGI client and complete without test dependency warnings.
+Provider integrations are represented with deterministic mocked tests. Live NVD, EPSS, CISA KEV, Shodan, Censys, and AI calls require configured credentials or network access and were not treated as a substitute for local deterministic validation.
 
-## Repository publication
+## Repository
 
-Repository: https://github.com/musayyabshah/ai-reconnaissance-tool
-
-Visibility: private. Default branch: `main`. Final verified commit: `47c97c4658d1d8a2c9080b42f2ac35250f4d9e01`.
+Private GitHub repository: https://github.com/musayyabshah/ai-reconnaissance-tool

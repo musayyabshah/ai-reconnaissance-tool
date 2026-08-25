@@ -69,13 +69,13 @@ def test_dns_helper_and_http_ssrf_boundary() -> None:
     collector = HTTPCollector(scope)
     with pytest.raises(ScopeViolation):
         asyncio.run(collector.collect("outside.example.net"))
-    with pytest.raises(SSRFBlocked):
-        # A permissive test double reaches the separate SSRF boundary; production uses ScopeEngine.
-        class AllowScope:
-            def require_active(self, value: str) -> None:
-                return None
 
-        asyncio.run(HTTPCollector(AllowScope(), allow_private=False).collect("127.0.0.1"))
+    class AllowScope:
+        def require_active(self, value: str) -> None:
+            return None
+
+    with pytest.raises(SSRFBlocked):
+        HTTPCollector(AllowScope(), allow_private=False)._validate_destination("http://127.0.0.1/")
 
 
 @pytest.mark.asyncio

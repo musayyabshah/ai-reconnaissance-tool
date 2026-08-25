@@ -157,12 +157,26 @@ class Finding(BaseModel):
     evidence_items: list[Evidence] = Field(default_factory=list)
     recommended_action: str | None = None
     score: float = Field(default=0, ge=0, le=100)
+    cve_id: str | None = None
+    cvss_score: float | None = Field(default=None, ge=0, le=10)
+    cvss_vector: str | None = None
+    epss_score: float | None = Field(default=None, ge=0, le=1)
+    epss_percentile: float | None = Field(default=None, ge=0, le=1)
+    kev_listed: bool = False
+    kev_due_date: str | None = None
+    evidence_hash: str | None = None
+    remediation: str | None = None
+    verification_state: str = "INDICATOR"
 
 
 class Asset(BaseModel):
     name: str
     kind: str = "hostname"
     scope_status: ScopeStatus = ScopeStatus.UNKNOWN
+    criticality: int = Field(default=50, ge=0, le=100)
+    owner: str | None = None
+    environment: str = "unknown"
+    tags: list[str] = Field(default_factory=list)
     ips: list[str] = Field(default_factory=list)
     services: list[Service] = Field(default_factory=list)
     technologies: list[Technology] = Field(default_factory=list)

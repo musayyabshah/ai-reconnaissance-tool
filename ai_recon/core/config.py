@@ -34,6 +34,13 @@ class AIConfig(BaseModel):
     enabled: bool = True
 
 
+class VulnerabilityConfig(BaseModel):
+    enabled: bool = True
+    rules_file: str = "rules/safe-indicators.yaml"
+    enrich_cves: bool = True
+    default_asset_criticality: int = Field(default=50, ge=0, le=100)
+
+
 class ReportingConfig(BaseModel):
     formats: list[str] = Field(default_factory=lambda: ["json", "html"])
     output_dir: str = "reports"
@@ -45,6 +52,7 @@ class AppConfig(BaseModel):
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     ai: AIConfig = Field(default_factory=AIConfig)
     reporting: ReportingConfig = Field(default_factory=ReportingConfig)
+    vulnerability: VulnerabilityConfig = Field(default_factory=VulnerabilityConfig)
     database_url: str = "sqlite:///data/recon.db"
     user_agent: str = "AI-Reconnaissance-Tool/0.1 (authorized defensive assessment)"
     shodan_api_key: str | None = None
@@ -94,5 +102,11 @@ def write_example(path: str | Path) -> None:
         },
         "ai": {"model": "gpt-5-mini", "enabled": True},
         "reporting": {"formats": ["json", "html"], "output_dir": "reports"},
+        "vulnerability": {
+            "enabled": True,
+            "rules_file": "rules/safe-indicators.yaml",
+            "enrich_cves": True,
+            "default_asset_criticality": 50,
+        },
     }
     Path(path).write_text(yaml.safe_dump(config, sort_keys=False))

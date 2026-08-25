@@ -140,3 +140,22 @@ The container exposes the API on port 8000 and persists SQLite data and reports 
 ## Known limitations
 
 Certificate-transparency discovery requires outbound network access. Shodan and Censys results depend on valid credentials and provider availability. TLS metadata is intentionally conservative in the first release. PostgreSQL compatibility is preserved at the repository boundary, but SQLite is the default local backend. The API is intended for localhost until an authentication layer is added.
+
+## Mature platform capabilities
+
+The current release adds a multi-user service mode with organization tenants, owner/admin/analyst/viewer roles, salted PBKDF2 password hashes, expiring bearer tokens, tenant-scoped scan retrieval, authenticated user creation, process-safe bootstrap, and a hash-chained audit log. The viewer role is read-only and cannot start scans. The local development mode remains available only when explicitly created with `auth_required=False` in Python; the default API application requires authentication.
+
+First-time API setup requires a one-time bootstrap key supplied only through `RECON_BOOTSTRAP_KEY`:
+
+```bash
+export RECON_BOOTSTRAP_KEY='use-a-long-random-value'
+recon api --host 127.0.0.1 --port 8000
+```
+
+Then call `POST /auth/bootstrap` once with an organization name, owner email, strong password, and the bootstrap key. Use the returned bearer token with `/me`, `/users`, `/scans`, `/jobs/scans`, `/jobs/{job_id}`, and report endpoints. Bootstrap is rejected after the first user exists.
+
+The safe vulnerability layer loads `rules/safe-indicators.yaml`. Rules are declarative and limited to relative `GET`/`HEAD` requests, bounded response sizes, no arbitrary code, no credential submission, no exploit payloads, and no implicit redirect following. Findings are explicitly labeled indicators or potential risks. NVD, EPSS, and CISA KEV enrichment is dated and stored on findings when a rule supplies a CVE identifier.
+
+Additional mature API endpoints include `POST /jobs/scans` for bounded asynchronous jobs, `GET /jobs/{job_id}`, `DELETE /jobs/{job_id}`, `GET /scans/{scan_id}/graph` for Cytoscape-compatible asset graphs, and `GET /scans/{scan_id}/diff/{previous_scan_id}` for asset/service/finding change detection.
+
+The deeper design rationale, standards references, comparable-project analysis, licensing policy, and roadmap are in [`docs/research-and-roadmap.md`](docs/research-and-roadmap.md). The project does not copy BloodHound, SharpHound, Nuclei, or ZAP source code or templates; it uses independent implementations and documents architectural inspiration in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

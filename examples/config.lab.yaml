@@ -25,3 +25,8 @@ ai:
 reporting:
   formats: [json, html]
   output_dir: reports
+vulnerability:
+  enabled: true
+  rules_file: rules/safe-indicators.yaml
+  enrich_cves: true
+  default_asset_criticality: 50

@@ -12,16 +12,19 @@ from ai_recon.analyzers.analysis import (
     TechnologyAnalyzer,
 )
 from ai_recon.analyzers.semantic import SemanticAnalyzer
+from ai_recon.analyzers.vulnerability import SafeVulnerabilityIndicatorEngine
 from ai_recon.collectors.dns import DNSCollector
 from ai_recon.collectors.http import HTTPCollector
 from ai_recon.collectors.nmap import NmapCollector
 from ai_recon.collectors.osint import PassiveOSINTCollector
 from ai_recon.collectors.providers import CensysProvider, ShodanProvider
 from ai_recon.collectors.subdomains import SubdomainCollector
+from ai_recon.collectors.threatintel import ThreatIntelEnricher
 from ai_recon.core.config import AppConfig
 from ai_recon.core.reliability import TTLCache
+from ai_recon.core.rules import load_rules
 from ai_recon.core.scope import ScopeEngine, ScopeViolation
-from ai_recon.models.entities import Asset, ScanReport, ScopeStatus, Target
+from ai_recon.models.entities import Asset, Finding, ScanReport, ScopeStatus, Target
 
 ProgressCallback = Callable[[str], None]
 
@@ -50,6 +53,17 @@ class ReconOrchestrator:
             config.ai.model, config.ai.enabled and config.recon.ai_analysis
         )
         self.cache = TTLCache(ttl_seconds=300)
+        self.vulnerability_engine = SafeVulnerabilityIndicatorEngine(
+            self.scope, config.limits.request_timeout, config.limits.allow_private_networks
+        )
+        self.threat_intel = ThreatIntelEnricher(config.limits.request_timeout)
+        try:
+            self.vulnerability_rules = (
+                load_rules(config.vulnerability.rules_file) if config.vulnerability.enabled else []
+            )
+        except ValueError as exc:
+            self.vulnerability_rules = []
+            self.progress(f"Vulnerability rules disabled: {exc}")
 
     def _stage(self, message: str) -> None:
         self.progress(message)
@@ -127,6 +141,15 @@ class ReconOrchestrator:
                     if admin_finding:
                         report.findings.append(admin_finding)
                     report.analyses.append(self.semantic.analyze(observation, technologies))
+                    if self.vulnerability_rules:
+                        try:
+                            report.findings.extend(
+                                await self.vulnerability_engine.evaluate(
+                                    observation, self.vulnerability_rules
+                                )
+                            )
+                        except Exception as exc:
+                            report.errors.append(f"Safe vulnerability rules {host}: {exc}")
             self._stage(f"{len(report.http_observations)} HTTP services analyzed")
 
         if self.config.recon.shodan:
@@ -150,14 +173,30 @@ class ReconOrchestrator:
             except Exception as exc:
                 report.errors.append(f"Censys: {exc}")
 
-        report.findings = [
-            self.risk.score(
-                finding,
-                weak_config=10 if finding.type == "MISSING_SECURITY_HEADERS" else 0,
-                sensitive=20 if finding.type == "POTENTIAL_ADMIN_INTERFACE" else 0,
-            )
-            for finding in report.findings
-        ]
+        enriched_findings: list[Finding] = []
+        for finding in report.findings:
+            if finding.cve_id and self.config.vulnerability.enrich_cves:
+                try:
+                    enrichment = await self.threat_intel.enrich(finding.cve_id)
+                    finding = finding.model_copy(
+                        update=enrichment.model_dump(exclude={"cve_id", "source", "retrieved_at"})
+                    )
+                except Exception as exc:
+                    report.errors.append(f"Threat intelligence {finding.cve_id}: {exc}")
+            if finding.source == "SAFE_RULE_ENGINE":
+                finding = self.risk.score_vulnerability(
+                    finding,
+                    asset_criticality=self.config.vulnerability.default_asset_criticality,
+                    internet_exposed=True,
+                )
+            else:
+                finding = self.risk.score(
+                    finding,
+                    weak_config=10 if finding.type == "MISSING_SECURITY_HEADERS" else 0,
+                    sensitive=20 if finding.type == "POTENTIAL_ADMIN_INTERFACE" else 0,
+                )
+            enriched_findings.append(finding)
+        report.findings = enriched_findings
         report.assets = self._correlate(report, active_hosts)
         report.metadata.update(
             {"cache_ttl_seconds": self.cache.ttl_seconds, "active_hosts": active_hosts}

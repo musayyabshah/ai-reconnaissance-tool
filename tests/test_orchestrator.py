@@ -1,6 +1,6 @@
 import pytest
 
-from ai_recon.core.config import AppConfig, ModuleConfig
+from ai_recon.core.config import AppConfig, ModuleConfig, VulnerabilityConfig
 from ai_recon.core.orchestrator import ReconOrchestrator
 from ai_recon.models.entities import DNSRecord, HTTPObservation, ScopeConfig, Service
 
@@ -9,6 +9,7 @@ from ai_recon.models.entities import DNSRecord, HTTPObservation, ScopeConfig, Se
 async def test_orchestrator_full_pipeline_with_mocked_collectors() -> None:
     config = AppConfig(
         scope=ScopeConfig(domains=["example.com"]),
+        vulnerability=VulnerabilityConfig(enabled=False),
         recon=ModuleConfig(
             osint=False,
             dns=True,

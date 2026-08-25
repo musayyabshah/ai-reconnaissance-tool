@@ -22,14 +22,56 @@ def test_reports_and_repository(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_api_health_and_forbidden_scan(tmp_path: Path) -> None:
+async def test_api_multi_user_auth_and_tenant_boundaries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RECON_BOOTSTRAP_KEY", "local-bootstrap-key-12345")
     config = AppConfig(
         scope=ScopeConfig(domains=["example.com"]),
         database_url=f"sqlite:///{tmp_path / 'api.db'}",
     )
     app = create_app(config=config)
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        assert (await client.get("/health")).json()["status"] == "ok"
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
+        assert (await client.get("/health")).status_code == 200
+        assert (await client.get("/me")).status_code == 401
+        bootstrap = await client.post(
+            "/auth/bootstrap",
+            json={
+                "organization_name": "Example Security",
+                "email": "owner@example.com",
+                "password": "correct-horse-battery-staple",
+                "bootstrap_key": "local-bootstrap-key-12345",
+            },
+        )
+        assert bootstrap.status_code == 200
+        token = bootstrap.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        me = await client.get("/me", headers=headers)
+        assert me.status_code == 200
+        assert me.json()["role"] == "owner"
+        add_user = await client.post(
+            "/users",
+            headers=headers,
+            json={
+                "email": "analyst@example.com",
+                "password": "another-correct-password",
+                "role": "analyst",
+            },
+        )
+        assert add_user.status_code == 200
+        unauthenticated_scan = await client.post("/scans", json={"target": "example.com"})
+        assert unauthenticated_scan.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_local_mode_rejects_out_of_scope_scan(tmp_path: Path) -> None:
+    config = AppConfig(
+        scope=ScopeConfig(domains=["example.com"]),
+        database_url=f"sqlite:///{tmp_path / 'local.db'}",
+    )
+    app = create_app(config=config, auth_required=False)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
         response = await client.post("/scans", json={"target": "outside.example.net"})
     assert response.status_code == 403

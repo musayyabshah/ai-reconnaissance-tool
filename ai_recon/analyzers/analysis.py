@@ -147,3 +147,32 @@ class RiskScorer:
         else:
             severity = Priority.INFO
         return finding.model_copy(update={"score": round(raw, 2), "severity": severity})
+
+    def score_vulnerability(
+        self,
+        finding: Finding,
+        asset_criticality: int = 0,
+        internet_exposed: bool = False,
+    ) -> Finding:
+        """Prioritize a vulnerability indicator; this does not confirm exploitability."""
+        score = finding.confidence * 25 + asset_criticality * 0.25
+        if internet_exposed:
+            score += 15
+        if finding.cvss_score is not None:
+            score += finding.cvss_score * 3
+        if finding.epss_score is not None:
+            score += finding.epss_score * 20
+        if finding.kev_listed:
+            score += 25
+        score = min(100.0, round(score, 2))
+        if finding.kev_listed or score >= 85:
+            severity = Priority.CRITICAL
+        elif score >= 70:
+            severity = Priority.HIGH
+        elif score >= 45:
+            severity = Priority.MEDIUM
+        elif score >= 20:
+            severity = Priority.LOW
+        else:
+            severity = Priority.INFO
+        return finding.model_copy(update={"score": score, "severity": severity})
