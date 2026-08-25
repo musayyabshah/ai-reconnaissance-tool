@@ -1,0 +1,27 @@
+scope:
+  domains:
+    - example.com
+  ips: []
+  cidrs: []
+  allowed_subdomains:
+    - "*.example.com"
+recon:
+  dns: true
+  subdomains: true
+  network: true
+  http: true
+  shodan: false
+  censys: false
+  ai_analysis: true
+limits:
+  concurrency: 4
+  request_timeout: 8
+  retry_count: 2
+  max_targets: 25
+  allow_private_networks: false
+ai:
+  model: gpt-5-mini
+  enabled: true
+reporting:
+  formats: [json, html]
+  output_dir: reports
